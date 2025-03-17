@@ -111,6 +111,12 @@ begin
 end;
 /
 
+select *
+  from table1;
+
+select *
+  from table2;
+
 declare
    type row_type is
       table of number;
@@ -276,3 +282,6 @@ exception
       dbms_output.put_line('Error: ' || sqlerrm);
 end;
 /
+
+select *
+  from table2;
