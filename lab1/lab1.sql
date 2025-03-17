@@ -1,4 +1,3 @@
--- Drop existing tables and sequences if they exist
 begin
    execute immediate 'DROP TABLE table1 CASCADE CONSTRAINTS';
    execute immediate 'DROP TABLE table2 CASCADE CONSTRAINTS';
@@ -6,11 +5,10 @@ begin
    execute immediate 'DROP SEQUENCE seq_table2_id';
 exception
    when others then
-      null; -- Ignore errors if the objects do not exist
+      null;
 end;
 /
 
--- 1. Create the tables
 create table table1 (
    id   number primary key,
    col2 number,
@@ -29,11 +27,9 @@ create table table2 (
    col6 varchar2(1)
 );
 
--- 2. Create sequences for auto-incrementing IDs
 create sequence seq_table1_id start with 1 increment by 1;
 create sequence seq_table2_id start with 1 increment by 1;
 
--- 3. Create triggers to automatically insert the primary key (ID)
 create or replace trigger trg_table1_before_insert before
    insert on table1
    for each row
@@ -50,11 +46,9 @@ begin
 end;
 /
 
--- 4. Insert random values into table1 and table2
 declare
    num_rows number := 5;
 begin
-   -- Insert random values into table1
    for i in 1..num_rows loop
       insert into table1 (
          col2,
@@ -84,7 +78,6 @@ begin
                  )) );
    end loop;
 
-   -- Insert random values into table2
    for i in 1..num_rows loop
       insert into table2 (
          col2,
@@ -118,7 +111,6 @@ begin
 end;
 /
 
--- 5. Matrix operations with values from table1
 declare
    type row_type is
       table of number;
@@ -148,7 +140,6 @@ begin
       matrix(matrix.last) := v_row;
    end loop;
 
-   -- Print Matrix
    for i in 1..matrix.count loop
       for j in 1..matrix(i).count loop
          dbms_output.put(matrix(i)(j)
@@ -159,7 +150,6 @@ begin
 end;
 /
 
--- 6. Find the maximum value in the shaded area of the matrix
 declare
    type t_row is
       table of number;
@@ -194,8 +184,10 @@ begin
    if v_rows > 0 then
       v_cols := v_matrix(1).count;
    else
-      dbms_output.put_line('Matrix is empty');
-      return;
+      raise_application_error(
+         -20001,
+         'Table is empty'
+      );
    end if;
 
    dbms_output.put_line('Processing matrix dimensions: '
@@ -233,10 +225,14 @@ begin
    end loop;
 
    dbms_output.put_line('Maximum value in the shaded area: ' || v_max_value);
+exception
+   when no_data_found then
+      dbms_output.put_line('No data found in the cursor');
+   when others then
+      dbms_output.put_line('An error occurred: ' || sqlerrm);
 end;
 /
 
--- 7. Update a row in table2 and display the updated values
 declare
    v_rec        table2%rowtype;
    v_row_string varchar2(100);
@@ -272,7 +268,6 @@ begin
                    || ' | '
                    || v_rec.col6;
 
-   -- Display updated row in console
    dbms_output.put_line('Updated row 1: ' || v_row_string);
 exception
    when no_data_found then
