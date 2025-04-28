@@ -259,6 +259,13 @@ begin
 end;
 /
 
+select *
+  from tempsales;
+select *
+  from tempbasketheader;
+select *
+  from tempbasketfilter;
+
 commit;
 
 begin
@@ -403,4 +410,32 @@ create or replace package body pktest as
    end getgeneraltable;
 
 end pktest;
+/
+
+select *
+  from table ( pktest.gettableinfo );
+
+declare
+   o_cursor       sys_refcursor;
+   v_basket_name  varchar2(255);
+   v_total_amount number;
+   v_check_count  number;
+begin
+   pktest.getgeneraltable(o_cursor);
+   dbms_output.put_line('--------------------------------------------------');
+   dbms_output.put_line('                Basket Summary');
+   dbms_output.put_line('--------------------------------------------------');
+   loop
+      fetch o_cursor into
+         v_basket_name,
+         v_total_amount,
+         v_check_count;
+      exit when o_cursor%notfound;
+      dbms_output.put_line('Basket Name: ' || v_basket_name);
+      dbms_output.put_line('Total Amount: ' || v_total_amount);
+      dbms_output.put_line('Check Count: ' || v_check_count);
+      dbms_output.put_line('--------------------------------------------------');
+   end loop;
+   close o_cursor;
+end;
 /
