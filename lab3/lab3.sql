@@ -1,18 +1,14 @@
--- Лабораторна робота №3: Використання динамічного SQL для створення об'єктів бази даних
--- Автор: Студент
--- Мета: Створити пакет з динамічним SQL для створення 5 об'єктів БД
-
--- Створення специфікації пакета
+-- Package Specification Creation
 create or replace package pkg_dynamic_objects is
-    -- Константи
+    -- Constants
    newline constant varchar2(2) := chr(10);
-    
-    -- Процедура для створення об'єктів БД за назвою таблиці
+
+    -- Procedure to create DB objects based on table name
    procedure create_database_objects (
       p_table_name varchar2
    );
-    
-    -- Допоміжні процедури для створення кожного типу об'єкта
+
+    -- Helper procedures for creating each object type
    procedure create_main_table (
       p_table_name varchar2
    );
@@ -28,8 +24,8 @@ create or replace package pkg_dynamic_objects is
    procedure create_view (
       p_table_name varchar2
    );
-    
-    -- Процедура для видалення об'єктів (якщо потрібно)
+
+    -- Procedure to drop objects (if needed)
    procedure drop_objects_if_exist (
       p_table_name varchar2
    );
@@ -37,43 +33,43 @@ create or replace package pkg_dynamic_objects is
 end pkg_dynamic_objects;
 /
 
--- Створення тіла пакета
+-- Package Body Creation
 create or replace package body pkg_dynamic_objects is
 
-    -- Основна процедура для створення всіх об'єктів
+    -- Main procedure to create all objects
    procedure create_database_objects (
       p_table_name varchar2
    ) is
    begin
-      dbms_output.put_line('Початок створення об''єктів для таблиці: ' || p_table_name);
-        
-        -- Спочатку видаляємо існуючі об'єкти (якщо є)
+      dbms_output.put_line('Starting object creation for table: ' || p_table_name);
+
+        -- First, drop existing objects (if any)
       drop_objects_if_exist(p_table_name);
-        
-        -- Створюємо об'єкти в правильному порядку
+
+        -- Create objects in the correct order
       create_main_table(p_table_name);
       create_log_table(p_table_name);
       create_sequence(p_table_name);
       create_trigger(p_table_name);
       create_view(p_table_name);
       commit;
-      dbms_output.put_line('Всі об''єкти успішно створені для таблиці: ' || p_table_name);
+      dbms_output.put_line('All objects successfully created for table: ' || p_table_name);
    exception
       when others then
          rollback;
-         dbms_output.put_line('Помилка при створенні об''єктів: ' || sqlerrm);
-         dbms_output.put_line('Трасування помилки: ' || dbms_utility.format_error_backtrace);
+         dbms_output.put_line('Error creating objects: ' || sqlerrm);
+         dbms_output.put_line('Error backtrace: ' || dbms_utility.format_error_backtrace);
          raise;
    end create_database_objects;
 
-    -- Процедура для видалення існуючих об'єктів
+    -- Procedure to drop existing objects
    procedure drop_objects_if_exist (
       p_table_name varchar2
    ) is
       v_sql   varchar2(1000);
       v_count number;
    begin
-        -- Видаляємо представлення
+        -- Drop view
       begin
          select count(*)
            into v_count
@@ -83,14 +79,14 @@ create or replace package body pkg_dynamic_objects is
          if v_count > 0 then
             v_sql := 'DROP VIEW V_' || upper(p_table_name);
             execute immediate v_sql;
-            dbms_output.put_line('Видалено представлення: V_' || upper(p_table_name));
+            dbms_output.put_line('Dropped view: V_' || upper(p_table_name));
          end if;
       exception
          when others then
-            null;
+            null; -- Ignore if view does not exist
       end;
-        
-        -- Видаляємо тригер
+
+        -- Drop trigger
       begin
          select count(*)
            into v_count
@@ -104,16 +100,16 @@ create or replace package body pkg_dynamic_objects is
                      || upper(p_table_name)
                      || '_AUDIT';
             execute immediate v_sql;
-            dbms_output.put_line('Видалено тригер: TRG_'
+            dbms_output.put_line('Dropped trigger: TRG_'
                                  || upper(p_table_name)
                                  || '_AUDIT');
          end if;
       exception
          when others then
-            null;
+            null; -- Ignore if trigger does not exist
       end;
-        
-        -- Видаляємо таблиці
+
+        -- Drop tables
       for table_rec in (
          select table_name
            from user_tables
@@ -125,14 +121,14 @@ create or replace package body pkg_dynamic_objects is
                      || table_rec.table_name
                      || ' CASCADE CONSTRAINTS';
             execute immediate v_sql;
-            dbms_output.put_line('Видалено таблицю: ' || table_rec.table_name);
+            dbms_output.put_line('Dropped table: ' || table_rec.table_name);
          exception
             when others then
-               null;
+               null; -- Ignore if table does not exist
          end;
       end loop;
-        
-        -- Видаляємо послідовності
+
+        -- Drop sequences
       for seq_rec in (
          select sequence_name
            from user_sequences
@@ -143,22 +139,22 @@ create or replace package body pkg_dynamic_objects is
          begin
             v_sql := 'DROP SEQUENCE ' || seq_rec.sequence_name;
             execute immediate v_sql;
-            dbms_output.put_line('Видалено послідовність: ' || seq_rec.sequence_name);
+            dbms_output.put_line('Dropped sequence: ' || seq_rec.sequence_name);
          exception
             when others then
-               null;
+               null; -- Ignore if sequence does not exist
          end;
       end loop;
 
    end drop_objects_if_exist;
 
-    -- Створення основної таблиці
+    -- Create Main Table
    procedure create_main_table (
       p_table_name varchar2
    ) is
       v_sql varchar2(4000);
    begin
-        -- Формуємо SQL для створення таблиці
+        -- Construct SQL for table creation
       v_sql := 'CREATE TABLE '
                || upper(p_table_name)
                || ' ('
@@ -182,41 +178,41 @@ create or replace package body pkg_dynamic_objects is
                || ')';
 
       execute immediate v_sql;
-        
-        -- Додаємо коментарі до колонок
+
+        -- Add comments to columns
       v_sql := 'COMMENT ON TABLE '
                || upper(p_table_name)
-               || ' IS ''Основна таблиця для '
+               || ' IS ''Main table for '
                || p_table_name
                || '''';
       execute immediate v_sql;
       v_sql := 'COMMENT ON COLUMN '
                || upper(p_table_name)
-               || '.id IS ''Унікальний ідентифікатор''';
+               || '.id IS ''Unique identifier''';
       execute immediate v_sql;
       v_sql := 'COMMENT ON COLUMN '
                || upper(p_table_name)
-               || '.name IS ''Назва запису''';
+               || '.name IS ''Name of the record''';
       execute immediate v_sql;
       v_sql := 'COMMENT ON COLUMN '
                || upper(p_table_name)
-               || '.description IS ''Опис запису''';
+               || '.description IS ''Description of the record''';
       execute immediate v_sql;
       v_sql := 'COMMENT ON COLUMN '
                || upper(p_table_name)
-               || '.status IS ''Статус запису (0-неактивний, 1-активний)''';
+               || '.status IS ''Record status (0-inactive, 1-active)''';
       execute immediate v_sql;
-      dbms_output.put_line('Створено основну таблицю: ' || upper(p_table_name));
+      dbms_output.put_line('Created main table: ' || upper(p_table_name));
    end create_main_table;
 
-    -- Створення журнальної таблиці
+    -- Create Log Table
    procedure create_log_table (
       p_table_name varchar2
    ) is
       v_sql            varchar2(4000);
       v_log_table_name varchar2(30) := upper(p_table_name || '_LOG');
    begin
-        -- Формуємо SQL для створення журнальної таблиці
+        -- Construct SQL for log table creation
       v_sql := 'CREATE TABLE '
                || v_log_table_name
                || ' ('
@@ -242,24 +238,24 @@ create or replace package body pkg_dynamic_objects is
                || ')';
 
       execute immediate v_sql;
-        
-        -- Створюємо послідовність для журнальної таблиці
+
+        -- Create sequence for log table
       v_sql := 'CREATE SEQUENCE SEQ_'
                || v_log_table_name
                || '_ID START WITH 1 INCREMENT BY 1 NOCACHE';
       execute immediate v_sql;
-        
-        -- Додаємо коментар
+
+        -- Add comment
       v_sql := 'COMMENT ON TABLE '
                || v_log_table_name
-               || ' IS ''Журнал змін для таблиці '
+               || ' IS ''Change log for table '
                || upper(p_table_name)
                || '''';
       execute immediate v_sql;
-      dbms_output.put_line('Створено журнальну таблицю: ' || v_log_table_name);
+      dbms_output.put_line('Created log table: ' || v_log_table_name);
    end create_log_table;
 
-    -- Створення послідовності
+    -- Create Sequence
    procedure create_sequence (
       p_table_name varchar2
    ) is
@@ -270,14 +266,10 @@ create or replace package body pkg_dynamic_objects is
                || v_seq_name
                || ' START WITH 1 INCREMENT BY 1 NOCACHE NOMAXVALUE';
       execute immediate v_sql;
-        
-        -- Примітка: В Oracle не можна додавати коментарі до послідовностей через COMMENT ON
-        -- Коментар можна додати тільки при створенні або через словник даних
-
-      dbms_output.put_line('Створено послідовність: ' || v_seq_name);
+      dbms_output.put_line('Created sequence: ' || v_seq_name);
    end create_sequence;
 
-    -- Створення тригера для аудиту
+    -- Create Audit Trigger
    procedure create_trigger (
       p_table_name varchar2
    ) is
@@ -288,7 +280,7 @@ create or replace package body pkg_dynamic_objects is
       v_log_table_name varchar2(30) := upper(p_table_name)
                                        || '_LOG';
    begin
-        -- Створюємо тригер для аудиту змін
+        -- Create trigger for auditing changes
       v_sql := 'CREATE OR REPLACE TRIGGER '
                || v_trigger_name
                || newline
@@ -309,7 +301,7 @@ create or replace package body pkg_dynamic_objects is
                || newline
                || 'BEGIN'
                || newline
-               || '    -- Визначаємо тип операції'
+               || '    -- Determine operation type'
                || newline
                || '    IF INSERTING THEN'
                || newline
@@ -340,7 +332,7 @@ create or replace package body pkg_dynamic_objects is
                || '    END IF;'
                || newline
                || newline
-               || '    -- Записуємо в журнал'
+               || '    -- Log the change'
                || newline
                || '    INSERT INTO '
                || v_log_table_name
@@ -353,17 +345,17 @@ create or replace package body pkg_dynamic_objects is
                || 'END;';
 
       execute immediate v_sql;
-      dbms_output.put_line('Створено тригер: ' || v_trigger_name);
+      dbms_output.put_line('Created trigger: ' || v_trigger_name);
    end create_trigger;
 
-    -- Створення представлення
+    -- Create View
    procedure create_view (
       p_table_name varchar2
    ) is
       v_sql       varchar2(4000);
       v_view_name varchar2(30) := 'V_' || upper(p_table_name);
    begin
-        -- Створюємо представлення з активними записами
+        -- Create view with active records
       v_sql := 'CREATE OR REPLACE VIEW '
                || v_view_name
                || ' AS'
@@ -386,11 +378,11 @@ create or replace package body pkg_dynamic_objects is
                || newline
                || '    CASE status '
                || newline
-               || '        WHEN 1 THEN ''Активний'''
+               || '        WHEN 1 THEN ''Active'''
                || newline
-               || '        WHEN 0 THEN ''Неактивний'''
+               || '        WHEN 0 THEN ''Inactive'''
                || newline
-               || '        ELSE ''Невідомо'''
+               || '        ELSE ''Unknown'''
                || newline
                || '    END AS status_name'
                || newline
@@ -400,84 +392,84 @@ create or replace package body pkg_dynamic_objects is
                || 'WHERE status = 1';
 
       execute immediate v_sql;
-        
-        -- Додаємо коментар до представлення
-      v_sql := 'COMMENT ON VIEW '
+
+        -- Add comment to view
+      v_sql := 'COMMENT ON TABLE '
                || v_view_name
-               || ' IS ''Представлення активних записів таблиці '
+               || ' IS ''View of active records for table '
                || upper(p_table_name)
                || '''';
       execute immediate v_sql;
-      dbms_output.put_line('Створено представлення: ' || v_view_name);
+      dbms_output.put_line('Created view: ' || v_view_name);
    end create_view;
 
 end pkg_dynamic_objects;
 /
 
--- Приклади використання пакета
+-- Examples of package usage
 begin
    dbms_output.enable(1000000);
-    
-    -- Створюємо об'єкти для таблиці PRODUCTS
+
+    -- Create objects for the PRODUCTS table
    pkg_dynamic_objects.create_database_objects('PRODUCTS');
 end;
 /
 
--- Тестування створених об'єктів
--- Вставляємо тестові дані в таблицю PRODUCTS
+-- Testing the created objects
+-- Insert test data into the PRODUCTS table
 insert into products (
    id,
    name,
    description
 ) values ( seq_products.nextval,
-           'Тестовий продукт 1',
-           'Опис тестового продукту 1' );
+           'Test Product 1',
+           'Description of Test Product 1' );
 
 insert into products (
    id,
    name,
    description
 ) values ( seq_products.nextval,
-           'Тестовий продукт 2',
-           'Опис тестового продукту 2' );
+           'Test Product 2',
+           'Description of Test Product 2' );
 
--- Оновлюємо запис (спрацьовує тригер)
+-- Update a record (trigger will fire)
 update products
    set
-   description = 'Оновлений опис продукту 1'
- where name = 'Тестовий продукт 1';
+   description = 'Updated description for Product 1'
+ where name = 'Test Product 1';
 
--- Переглядаємо дані через представлення
+-- View data through the view
 select *
   from v_products;
 
--- Переглядаємо журнал змін
+-- View the change log
 select *
   from products_log
  order by operation_date;
 
 commit;
 
--- Перевірка створених об'єктів
-select 'ТАБЛИЦІ' as object_type,
+-- Verify created objects
+select 'TABLES' as object_type,
        table_name as object_name
   from user_tables
  where table_name like '%PRODUCTS%'
     or table_name like '%CUSTOMERS%'
 union all
-select 'ПОСЛІДОВОСТІ' as object_type,
+select 'SEQUENCES' as object_type,
        sequence_name as object_name
   from user_sequences
  where sequence_name like '%PRODUCTS%'
     or sequence_name like '%CUSTOMERS%'
 union all
-select 'ТРИГЕРИ' as object_type,
+select 'TRIGGERS' as object_type,
        trigger_name as object_name
   from user_triggers
  where trigger_name like '%PRODUCTS%'
     or trigger_name like '%CUSTOMERS%'
 union all
-select 'ПРЕДСТАВЛЕННЯ' as object_type,
+select 'VIEWS' as object_type,
        view_name as object_name
   from user_views
  where view_name like '%PRODUCTS%'
